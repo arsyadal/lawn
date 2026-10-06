@@ -1,0 +1,9 @@
+export const ORDER_STATUSES = ['RECEIVED', 'WASHING', 'DRYING', 'QUALITY_CHECK', 'READY', 'COMPLETED', 'CANCELLED'] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export const USER_ROLES = ['OWNER', 'ADMIN', 'STAFF'] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+export const PAYMENT_METHODS = ['CASH', 'QRIS', 'TRANSFER', 'E_WALLET', 'OTHER'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export type PaymentStatus = 'UNPAID' | 'PARTIAL' | 'PAID' | 'REFUNDED';
+export const PHOTO_CATEGORIES = ['BEFORE', 'PROBLEM', 'AFTER'] as const;
+export type PhotoCategory = (typeof PHOTO_CATEGORIES)[number];

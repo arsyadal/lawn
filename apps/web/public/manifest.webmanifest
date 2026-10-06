@@ -1,0 +1,25 @@
+{
+  "name": "Lawn",
+  "short_name": "Lawn",
+  "description": "Operasional laundry sepatu dari penerimaan sampai pengambilan.",
+  "lang": "id-ID",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f5ef",
+  "theme_color": "#17462c",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icons/lawn-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/lawn-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/lawn-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/lawn-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/lawn-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/lawn-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Order Baru", "short_name": "Order Baru", "url": "/orders/new" },
+    { "name": "Daftar Order", "short_name": "Order", "url": "/orders" }
+  ]
+}

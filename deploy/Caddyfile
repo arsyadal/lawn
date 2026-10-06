@@ -1,0 +1,10 @@
+{$PUBLIC_DOMAIN} {
+  encode zstd gzip
+  @api path /api /api/* /health
+  handle @api {
+    reverse_proxy api:4000
+  }
+  handle {
+    reverse_proxy web:3000
+  }
+}

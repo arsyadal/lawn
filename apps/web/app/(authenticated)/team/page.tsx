@@ -1,0 +1,28 @@
+'use client';
+
+import { FormEvent, useState } from 'react';
+import { LoaderCircle, Plus, ShieldCheck, UserRoundCog, X } from 'lucide-react';
+import { useAuth } from '@/components/AuthProvider';
+import { EmptyState, ErrorState, LoadingPage, Notice, PageHeader } from '@/components/ui';
+import { api, listResult } from '@/lib/api';
+import { canManageTeam } from '@/lib/permissions';
+import type { UserRole } from '@/lib/types';
+import type { ApiUser } from '@/lib/adapters';
+import { normalizeUser } from '@/lib/adapters';
+import { useApiData } from '@/lib/useApiData';
+
+type TeamResponse = ApiUser[] | { data?: ApiUser[]; items?: ApiUser[] };
+const roleCopy: Record<UserRole, string> = { OWNER: 'Akses penuh termasuk tim dan pengaturan', ADMIN: 'Pelanggan, layanan, order, pembayaran, laporan', STAFF: 'Melihat order dan memperbarui alur kerja' };
+
+export default function TeamPage() {
+  const { user } = useAuth(); const result = useApiData<TeamResponse>('/team'); const [showForm, setShowForm] = useState(false); const [saving, setSaving] = useState(false); const [actionError, setActionError] = useState<string | null>(null);
+  if (!canManageTeam(user.role)) return <Notice tone="danger">Hanya OWNER yang dapat mengelola anggota tim.</Notice>;
+  if (result.loading) return <LoadingPage label="Memuat tim" />;
+  if (result.error || !result.data) return <ErrorState message={result.error ?? 'Tim tidak tersedia.'} retry={() => void result.refresh()} />;
+  const users = listResult(result.data).data.map(normalizeUser);
+  async function create(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setSaving(true); setActionError(null); const form = new FormData(event.currentTarget); try { await api('/team', { method: 'POST', body: { displayName: String(form.get('name') ?? '').trim(), email: String(form.get('email') ?? '').trim(), username: String(form.get('username') ?? '').trim(), password: String(form.get('password') ?? ''), role: String(form.get('role')) } }); setShowForm(false); await result.refresh(); } catch (cause) { setActionError(cause instanceof Error ? cause.message : 'Anggota tim tidak dapat dibuat.'); } finally { setSaving(false); } }
+  return <div className="page-enter"><PageHeader eyebrow="Akses" title="Tim" description="Buat akun dan tentukan peran kerja. Pembatasan tetap diterapkan oleh API." action={<button className="btn-primary" onClick={() => setShowForm(true)}><Plus className="size-5" aria-hidden="true" />Anggota baru</button>} />{actionError ? <div className="mb-4"><Notice tone="danger">{actionError}</Notice></div> : null}
+    {users.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{users.map((member) => <article className="card" key={member.id}><div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-wash font-semibold text-moss">{member.name.slice(0, 1).toUpperCase()}</span><div className="min-w-0"><h2 className="truncate font-semibold">{member.name}</h2><p className="truncate text-sm text-muted">{member.email}</p><p className="truncate text-xs text-muted">@{member.username}</p></div></div><div className="mt-4 flex items-center gap-2 border-t border-line pt-4"><ShieldCheck className="size-4 text-moss" aria-hidden="true" /><span className="rounded-full bg-wash px-2.5 py-1 text-xs font-semibold">{member.role}</span>{member.active === false ? <span className="text-xs font-semibold text-red-700">Nonaktif</span> : null}</div></article>)}</div> : <EmptyState title="Belum ada anggota" description="Tambahkan admin atau staff untuk membagi pekerjaan." />}
+    {showForm ? <div className="fixed inset-0 z-50 grid place-items-end bg-black/45 sm:place-items-center sm:p-5" role="dialog" aria-modal="true" aria-labelledby="team-form-title"><form className="w-full max-w-lg rounded-t-3xl bg-white p-5 sm:rounded-2xl" onSubmit={create}><div className="flex items-center justify-between"><div><p className="eyebrow">Akun pengguna</p><h2 className="section-title" id="team-form-title">Anggota baru</h2></div><button className="icon-button" type="button" onClick={() => setShowForm(false)} aria-label="Tutup"><X className="size-5" aria-hidden="true" /></button></div><div className="mt-5 grid gap-4 sm:grid-cols-2"><div><label className="field-label" htmlFor="member-name">Nama *</label><input className="field" id="member-name" name="name" required autoFocus /></div><div><label className="field-label" htmlFor="member-username">Username *</label><input className="field" id="member-username" name="username" autoComplete="off" required /></div><div className="sm:col-span-2"><label className="field-label" htmlFor="member-email">Email *</label><input className="field" id="member-email" name="email" type="email" autoComplete="off" required /></div><div><label className="field-label" htmlFor="member-password">Password awal *</label><input className="field" id="member-password" name="password" type="password" minLength={8} autoComplete="new-password" required /></div><div><label className="field-label" htmlFor="member-role">Peran *</label><select className="field" id="member-role" name="role" defaultValue="STAFF">{(['OWNER', 'ADMIN', 'STAFF'] as UserRole[]).map((role) => <option value={role} key={role}>{role}</option>)}</select></div></div><div className="mt-4 rounded-xl bg-wash p-3 text-xs leading-5 text-muted">{Object.entries(roleCopy).map(([role, copy]) => <p key={role}><strong className="text-ink">{role}:</strong> {copy}</p>)}</div><button className="btn-primary mt-5 w-full" disabled={saving}>{saving ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <UserRoundCog className="size-4" aria-hidden="true" />}Buat akun</button></form></div> : null}
+  </div>;
+}

@@ -1,0 +1,301 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  STAFF
+}
+
+enum OrderStatus {
+  RECEIVED
+  WASHING
+  DRYING
+  QUALITY_CHECK
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  QRIS
+  TRANSFER
+  E_WALLET
+  OTHER
+}
+
+enum PaymentEventType {
+  PAYMENT
+  REFUND
+}
+
+enum PhotoCategory {
+  BEFORE
+  PROBLEM
+  AFTER
+}
+
+enum ActivityType {
+  PRICE_CHANGED
+  PAYMENT_RECORDED
+  REFUND_RECORDED
+  ORDER_CANCELLED
+}
+
+model Tenant {
+  id          String   @id @default(uuid()) @db.Uuid
+  businessName String
+  phone       String?
+  address     String?
+  logoObjectKey String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+  customers   Customer[]
+  services    Service[]
+  orders      Order[]
+  orderItems  OrderItem[]
+  statusHistory OrderStatusHistory[]
+  photos      ItemPhoto[]
+  payments    Payment[]
+  activities  OrderActivity[]
+  sequences   TenantOrderSequence[]
+  pendingUploads PendingUpload[]
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid
+  email        String   @unique
+  username     String   @unique
+  displayName  String
+  passwordHash String
+  role         UserRole
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  sessions     Session[]
+  ordersCreated Order[] @relation("OrderCreator")
+  statusChanges OrderStatusHistory[]
+  photosCreated ItemPhoto[]
+  paymentsCreated Payment[]
+  activitiesCreated OrderActivity[]
+  pendingUploads PendingUpload[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, role])
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique @db.Char(64)
+  csrfHash  String   @db.Char(64)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Customer {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  name      String
+  phone     String
+  email     String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  orders    Order[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, name])
+  @@index([tenantId, phone])
+}
+
+model Service {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  name            String
+  description     String?
+  price           Int
+  estimatedMinutes Int?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  orderItems      OrderItem[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, name])
+  @@index([tenantId, active])
+}
+
+model TenantOrderSequence {
+  tenantId  String @db.Uuid
+  year      Int
+  nextNumber Int
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, year])
+}
+
+model Order {
+  id                  String      @id @default(uuid()) @db.Uuid
+  tenantId            String      @db.Uuid
+  customerId          String      @db.Uuid
+  createdById         String      @db.Uuid
+  orderNumber         String
+  status              OrderStatus @default(RECEIVED)
+  estimatedCompletion DateTime
+  subtotal            Int
+  discount            Int         @default(0)
+  total               Int
+  notes                String?
+  trackingTokenHash    String      @unique @db.Char(64)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  tenant               Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  customer             Customer    @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Restrict)
+  createdBy            User        @relation("OrderCreator", fields: [tenantId, createdById], references: [tenantId, id], onDelete: Restrict)
+  items                OrderItem[]
+  statusHistory        OrderStatusHistory[]
+  payments             Payment[]
+  activities           OrderActivity[]
+  pendingUploads       PendingUpload[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId, customerId])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, estimatedCompletion])
+}
+
+model OrderItem {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @db.Uuid
+  orderId              String   @db.Uuid
+  serviceId            String   @db.Uuid
+  position             Int
+  brand                 String
+  model                 String
+  color                 String
+  size                  String?
+  serviceNameSnapshot   String
+  servicePriceSnapshot  Int
+  conditionNotes        String?
+  specialRequest        String?
+  treatmentNotes        String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  order                 Order    @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Cascade)
+  service               Service  @relation(fields: [tenantId, serviceId], references: [tenantId, id], onDelete: Restrict)
+  photos                ItemPhoto[]
+  pendingUploads        PendingUpload[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, orderId])
+  @@index([tenantId, brand])
+}
+
+model OrderStatusHistory {
+  id         String      @id @default(uuid()) @db.Uuid
+  tenantId   String      @db.Uuid
+  orderId    String      @db.Uuid
+  actorId    String      @db.Uuid
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  note       String?
+  createdAt  DateTime    @default(now())
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  order      Order       @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Cascade)
+  actor      User        @relation(fields: [tenantId, actorId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, orderId, createdAt])
+}
+
+model ItemPhoto {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @db.Uuid
+  orderItemId String        @db.Uuid
+  createdById String        @db.Uuid
+  category    PhotoCategory
+  objectKey   String        @unique
+  contentType String
+  sizeBytes   Int
+  createdAt   DateTime      @default(now())
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  orderItem   OrderItem     @relation(fields: [tenantId, orderItemId], references: [tenantId, id], onDelete: Cascade)
+  createdBy   User          @relation(fields: [tenantId, createdById], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, orderItemId, createdAt])
+}
+
+model PendingUpload {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @db.Uuid
+  orderId     String        @db.Uuid
+  orderItemId String        @db.Uuid
+  createdById String        @db.Uuid
+  category    PhotoCategory
+  objectKey   String        @unique
+  contentType String
+  sizeBytes   Int
+  expiresAt   DateTime
+  createdAt   DateTime      @default(now())
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order       Order         @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Cascade)
+  orderItem   OrderItem     @relation(fields: [tenantId, orderItemId], references: [tenantId, id], onDelete: Cascade)
+  createdBy   User          @relation(fields: [tenantId, createdById], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId, expiresAt])
+}
+
+model Payment {
+  id              String           @id @default(uuid()) @db.Uuid
+  tenantId        String           @db.Uuid
+  orderId         String           @db.Uuid
+  createdById     String           @db.Uuid
+  type            PaymentEventType
+  amount          Int
+  method          PaymentMethod
+  referenceNumber String?
+  note            String?
+  occurredAt      DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  order           Order            @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Restrict)
+  createdBy       User             @relation(fields: [tenantId, createdById], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, orderId, occurredAt])
+  @@index([tenantId, occurredAt, method])
+}
+
+model OrderActivity {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @db.Uuid
+  orderId     String       @db.Uuid
+  actorId     String       @db.Uuid
+  type        ActivityType
+  details     Json
+  createdAt   DateTime     @default(now())
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  order       Order        @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Cascade)
+  actor       User         @relation(fields: [tenantId, actorId], references: [tenantId, id], onDelete: Restrict)
+
+  @@index([tenantId, orderId, createdAt])
+}

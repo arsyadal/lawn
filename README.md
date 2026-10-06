@@ -20,7 +20,9 @@ npm run dev
 
 Web: http://localhost:3000. API: http://localhost:4000 with health at `/health`. MinIO console: http://localhost:9001 (`laundry` / `laundry_local_secret`, bucket `laundry-private`).
 
-`.env` lives at the repository root and is read by both apps. `npm run db:migrate` loads it explicitly through `dotenv-cli` (`dotenv -e ../../.env -- prisma migrate deploy`); `npm run db:seed` runs `tsx prisma/seed.ts`, which loads the same root `.env` itself with the `dotenv` package, as does the API process via `apps/api/src/config/env.ts`. The seed refuses to run unless `SEED_TENANT_NAME`, `SEED_OWNER_EMAIL`, `SEED_OWNER_USERNAME`, and `SEED_OWNER_PASSWORD` are set, and it never creates a default account. Only an OWNER can create the remaining users from `/team`.
+`.env` lives at the repository root and is read by the API and the Prisma tooling; the web app does not read it (Next.js only loads env files from its own app root). `npm run db:migrate` loads it explicitly through `dotenv-cli` (`dotenv -e ../../.env -- prisma migrate deploy`); `npm run db:seed` runs `tsx prisma/seed.ts`, which loads the same root `.env` itself with the `dotenv` package, as does the API process via `apps/api/src/config/env.ts`. The seed refuses to run unless `SEED_TENANT_NAME`, `SEED_OWNER_EMAIL`, `SEED_OWNER_USERNAME`, and `SEED_OWNER_PASSWORD` are set, and it never creates a default account. Only an OWNER can create the remaining users from `/team`.
+
+In local development the browser only talks to http://localhost:3000: `apps/web/next.config.mjs` registers a development-only rewrite from `/api/:path*` to `http://localhost:4000/api/:path*`, so no web env file is required and no manual editing is needed. Production is unchanged because Caddy routes `/api` to the API. If the API runs elsewhere, copy `apps/web/.env.example` to `apps/web/.env.local` and set `NEXT_PUBLIC_API_URL` to that origin — this is an optional override, and any existing `.env.local` is left as-is.
 
 ## Checks
 
@@ -31,7 +33,7 @@ npm test                # unit tests, no database required
 npm run icons           # regenerates the PNG PWA icons in apps/web/public/icons
 ```
 
-Integration tests exercise the API against PostgreSQL and MinIO/S3 configuration and are opt-in:
+Integration tests exercise the API against a migrated PostgreSQL database and are opt-in. The storage suite additionally boots an in-process S3-compatible server (`s3rver`, via `apps/api/test/support/in-process-s3.ts`) with a generated local endpoint and dummy credentials, so no external MinIO/S3 bucket is needed; the API still loads and validates its regular root `.env`, so the required variables remain mandatory. Enable the database suites with:
 
 ```sh
 RUN_DB_TESTS=1 npm run test:integration            # bash
@@ -39,7 +41,7 @@ set RUN_DB_TESTS=1&& npm run test:integration      # cmd.exe
 $env:RUN_DB_TESTS=1; npm run test:integration      # PowerShell
 ```
 
-They create and delete their own tenants in the configured database, so point `DATABASE_URL` at a development database.
+The database suites need a migrated PostgreSQL database and create and delete their own tenants, so point `DATABASE_URL` at a development database. Run the storage suite with `RUN_DB_TESTS=1 RUN_STORAGE_TESTS=1 npm run test:integration`; it needs no pre-provisioned bucket.
 
 ## Production HTTPS
 

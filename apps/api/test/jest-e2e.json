@@ -1,0 +1,8 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testRegex": "test/.*\\.integration-spec\\.ts$",
+  "setupFiles": ["<rootDir>/test/setup-env.ts"],
+  "transform": { "^.+\\.ts$": ["ts-jest", { "tsconfig": "tsconfig.json" }] },
+  "testEnvironment": "node"
+}

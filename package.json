@@ -1,0 +1,20 @@
+{
+  "name": "lawn",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build": "npm run build --workspace=@lawn/contracts && npm run build --workspace=@lawn/api && npm run build --workspace=@lawn/web",
+    "dev": "npm run build --workspace=@lawn/contracts && concurrently -k -n api,web -c blue,green \"npm:dev --workspace=@lawn/api\" \"npm:dev --workspace=@lawn/web\"",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run build --workspace=@lawn/contracts && npm run typecheck --workspaces --if-present",
+    "test": "npm run build --workspace=@lawn/contracts && npm run test --workspaces --if-present",
+    "test:integration": "npm run build --workspace=@lawn/contracts && npm run test:e2e --workspace=@lawn/api",
+    "icons": "node scripts/generate-icons.mjs",
+    "db:migrate": "npm run db:migrate --workspace=@lawn/api",
+    "db:seed": "npm run db:seed --workspace=@lawn/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}
